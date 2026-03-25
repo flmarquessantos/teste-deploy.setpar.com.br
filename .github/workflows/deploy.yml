@@ -1,4 +1,4 @@
-name: Deploy TEST-WEB to IIS (EC2 via SSM)
+name: Deploy TESTE-DEPLOY to IIS (EC2 via SSM)
 
 on:
   push:
@@ -20,10 +20,10 @@ jobs:
         shell: pwsh
         run: |
           $stamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
-          $zip = "test-web_$stamp.zip"
+          $zip = "teste-deploy_$stamp.zip"
           Compress-Archive -Path "site\*" -DestinationPath $zip -Force
           "ZIP_NAME=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "S3_KEY=test-web/$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "S3_KEY=teste-deploy/$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -44,9 +44,8 @@ jobs:
             '$ErrorActionPreference = "Stop"',
             'Import-Module WebAdministration',
 
-            # Ajuste aqui se mudar:
-            '$SitePath = "C:\Sites\test-web"',
-            '$AppPool  = "test-web"',
+            '$SitePath = "C:\inetpub\wwwroot\teste-deploy.setpar.com.br"',
+            '$AppPool  = "teste-deploy.setpar.com.br"',
             '$offline  = Join-Path $SitePath "app_offline.htm"',
 
             'New-Item -ItemType Directory -Force -Path "C:\Deploy\temp"   | Out-Null',
@@ -58,11 +57,9 @@ jobs:
             'New-Item -ItemType Directory -Force -Path $temp   | Out-Null',
             'New-Item -ItemType Directory -Force -Path $backup | Out-Null',
 
-            # Backup do site atual
             'robocopy $SitePath $backup /MIR /R:2 /W:2 /NFL /NDL /NP | Out-Null',
             'Get-ChildItem "C:\Deploy\backup" | Sort-Object CreationTime -Descending | Select-Object -Skip 10 | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue',
 
-            # Baixa ZIP
             '$zip     = Join-Path $temp "package.zip"',
             '$extract = Join-Path $temp "extract"',
             'New-Item -ItemType Directory -Force -Path $extract | Out-Null',
@@ -75,7 +72,6 @@ jobs:
 
             'Expand-Archive -Path $zip -DestinationPath $extract -Force',
 
-            # Deploy
             '"Deploy em andamento ($stamp)" | Out-File -Encoding utf8 $offline',
             'Stop-WebAppPool -Name $AppPool',
             'robocopy $extract $SitePath /MIR /R:2 /W:2 /NFL /NDL /NP | Out-Null',
@@ -87,7 +83,7 @@ jobs:
           $payload = @{
             DocumentName = "AWS-RunPowerShellScript"
             InstanceIds  = @("${{ secrets.INSTANCE_ID }}")
-            Comment      = "Deploy TEST-WEB from GitHub Actions"
+            Comment      = "Deploy TESTE-DEPLOY from GitHub Actions"
             Parameters   = @{ commands = $commands }
           } | ConvertTo-Json -Compress
 
